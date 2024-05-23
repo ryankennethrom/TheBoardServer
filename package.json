@@ -6,6 +6,7 @@
     "server": "nodemon index.ts"
   },
   "keywords": [],
+  "type":"module",
   "author": "",
   "license": "ISC",
   "description": "",
