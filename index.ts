@@ -1,15 +1,15 @@
-const express = require('express')
-const http = require('http')
+import express from 'express'
+import http from 'http'
 const app = express()
 const server = http.createServer(app)
-const amqp = require('amqplib/callback_api')
+import amqp from 'amqplib/callback_api'
 
 import { Server } from 'socket.io'
 
 const io = new Server(server,{
     cors : {
-        origin: "https://the-board-client.vercel.app/",
-    }
+        origin: "*",
+    },
 })
 
 type Point = {x: number, y: number}
@@ -31,7 +31,6 @@ io.on('connection', (socket) => {
         socket.broadcast.emit('canvas-state-from-server', state)
     })
     socket.on('draw-line', ({prevPoint, currentPoint, color}: DrawLine) => {
-        // socket.broadcast.emit('draw-line', {prevPoint, currentPoint, color})
         amqp.connect('amqp://localhost', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
             if(err){
                 throw err;
@@ -59,6 +58,7 @@ io.on('connection', (socket) => {
 
 amqp.connect('amqp://localhost', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
     if(err){
+        console.log('jere');
         throw err;
     }
 
@@ -71,7 +71,6 @@ amqp.connect('amqp://localhost', (err: any, connection: { createChannel: (arg0: 
             durable: false,
         });
         channel.consume(queueName, (msg: { content: { toString: () => any } }) => {
-            // console.log(`Received: ${msg.content.toString()}}`);
             try {
                 var line = JSON.parse(msg.content.toString());
                 io.sockets.emit("draw-line", line);
