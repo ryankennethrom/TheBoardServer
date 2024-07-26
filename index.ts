@@ -5,6 +5,7 @@ const server = http.createServer(app)
 import amqp from 'amqplib/callback_api'
 
 import { Server } from 'socket.io'
+import { drawLine } from './drawLine'
 
 const io = new Server(server,{
     cors : {
@@ -20,69 +21,97 @@ type DrawLine = {
     color: string
 }
 
-io.on('connection', (socket) => {
-    console.log('connection')
+import { createCanvas, loadImage } from 'canvas';
+import fs from "fs";
+var canvas = createCanvas(750,750);
+const ctx = canvas.getContext('2d');
 
-    socket.on('client-ready', ()=>{
-        socket.broadcast.emit('get-canvas-state')
+var image_path = './image.png';
+
+if(fs.existsSync(image_path)){
+    loadImage(image_path).then((image) => {
+        ctx.drawImage(image, 0, 0);
+        setUpServer();
     })
+}  else {
+    setUpServer();
+}
 
-    socket.on('canvas-state', (state) => {
-        socket.broadcast.emit('canvas-state-from-server', state)
-    })
-    socket.on('draw-line', ({prevPoint, currentPoint, color}: DrawLine) => {
-        amqp.connect('amqp://localhost', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
-            if(err){
-                throw err;
-            }
-
-            connection.createChannel((err, channel) => {
+function setUpServer() {
+    io.on('connection', (socket) => {
+        console.log('connection')
+    
+        socket.on('client-ready', ()=>{
+            var base64img = canvas.toDataURL("image/png");
+            socket.emit("canvas-update", base64img);
+        })
+    
+        // socket.on('canvas-state', (state) => {
+        //     socket.broadcast.emit('canvas-state-from-server', state)
+        // })
+    
+        socket.on('draw-line', ({prevPoint, currentPoint, color}: DrawLine) => {
+            amqp.connect('amqp://localhost', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
                 if(err){
                     throw err;
                 }
-                let queueName = "drawQueue";
-                let line = {prevPoint, currentPoint, color};
-                channel.assertQueue(queueName, {
-                    durable: false,
-                });
-                channel.sendToQueue(queueName, Buffer.from(JSON.stringify(line)));
-                setTimeout(() => {
-                    connection.close();
-                }, 1000)
-            })
-        });
+    
+                connection.createChannel((err, channel) => {
+                    if(err){
+                        throw err;
+                    }
+                    let queueName = "drawQueue";
+                    let line = {prevPoint, currentPoint, color};
+                    channel.assertQueue(queueName, {
+                        durable: false,
+                    });
+                    channel.sendToQueue(queueName, Buffer.from(JSON.stringify(line)));
+                    setTimeout(() => {
+                        connection.close();
+                    }, 1000)
+                })
+            });
+        })
+    
+        socket.on('clear', ()=> io.emit('clear'))
     })
-
-    socket.on('clear', ()=> io.emit('clear'))
-})
-
-amqp.connect('amqp://localhost', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
-    if(err){
-        console.log('jere');
-        throw err;
-    }
-
-    connection.createChannel((err, channel) => {
+    
+    amqp.connect('amqp://localhost', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
         if(err){
             throw err;
         }
-        let queueName = "drawQueue";
-        channel.assertQueue(queueName, {
-            durable: false,
-        });
-        channel.consume(queueName, (msg: { content: { toString: () => any } }) => {
-            try {
-                var line = JSON.parse(msg.content.toString());
-                io.sockets.emit("draw-line", line);
-            } catch (e) {
-                console.error(e);
+    
+        connection.createChannel((err, channel) => {
+            if(err){
+                throw err;
             }
-        }, {
-            noAck: true,
+            let queueName = "drawQueue";
+            channel.assertQueue(queueName, {
+                durable: false,
+            });
+            channel.consume(queueName, (msg: { content: { toString: () => any } }) => {
+                try {
+                    var {prevPoint, currentPoint, color} = JSON.parse(msg.content.toString());
+                    if(!ctx)return
+                    drawLine({prevPoint, currentPoint, ctx, color});
+                    io.sockets.emit("draw-line", {prevPoint, currentPoint, color});
+                } catch (e) {
+                    console.error(e);
+                }
+            }, {
+                noAck: true,
+            })
         })
+    });
+    
+    server.listen(3001, () => {
+        console.log('Server listening on port 3001')
     })
-});
 
-server.listen(3001, () => {
-    console.log('Server listening on port 3001')
-})
+    setInterval(saveImage, 10000)
+}
+
+function saveImage(){
+    const buffer = canvas.toBuffer("image/png");
+    fs.writeFileSync("./image.png", buffer);
+}

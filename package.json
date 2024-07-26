@@ -12,6 +12,7 @@
   "description": "",
   "dependencies": {
     "amqplib": "^0.10.4",
+    "canvas": "^2.11.2",
     "express": "^4.19.2",
     "nodemon": "^3.1.4",
     "socket.io": "^4.7.5",
