@@ -42,6 +42,7 @@ function setUpServer() {
         console.log('connection')
     
         socket.on('client-ready', ()=>{
+            socket.emit('server-ready');
             var base64img = canvas.toDataURL("image/png");
             socket.emit("canvas-update", base64img);
 
