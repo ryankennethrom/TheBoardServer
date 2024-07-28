@@ -94,7 +94,7 @@ function setUpServer() {
                     var {prevPoint, currentPoint, color} = JSON.parse(msg.content.toString());
                     if(!ctx)return
                     drawLine({prevPoint, currentPoint, ctx, color});
-                    io.sockets.emit("draw-line", {prevPoint, currentPoint, color});
+                    // io.sockets.emit("draw-line", {prevPoint, currentPoint, color});
                 } catch (e) {
                     console.error(e);
                 }
