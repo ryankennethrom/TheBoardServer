@@ -1,17 +1,22 @@
-import express from 'express'
-import http from 'http'
+import express from 'express';
+import http from 'http';
+import amqp from 'amqplib/callback_api';
+import mongoose from 'mongoose';
+import { Server } from 'socket.io';
+import { drawLine } from './drawLine';
+import { Canvas, Image, createCanvas, loadImage } from 'canvas';
+import fs from "fs";
+import CanvasImage from "./canvasImages";
+
 const app = express()
 const server = http.createServer(app)
-import amqp from 'amqplib/callback_api'
-
-import { Server } from 'socket.io'
-import { drawLine } from './drawLine'
 
 const io = new Server(server,{
     cors : {
         origin: "*",
     },
 })
+
 
 type Point = {x: number, y: number}
 
@@ -21,21 +26,33 @@ type DrawLine = {
     color: string
 }
 
-import { createCanvas, loadImage } from 'canvas';
-import fs from "fs";
+const dbURI = 'mongodb+srv://ryanrom14nalt:QHbBk0DioS1cuPyC@cluster0.gwvon2w.mongodb.net/TheBoard';
 var canvas = createCanvas(750,750);
 const ctx = canvas.getContext('2d');
 
-var image_path = './image.png';
-
-if(fs.existsSync(image_path)){
-    loadImage(image_path).then((image) => {
-        ctx.drawImage(image, 0, 0);
+mongoose.connect(dbURI).then((result)=>{
+    console.log('connected to db');
+    CanvasImage.findOne({
+        id: '1'
+    })
+    .then((result) => {
+        if(!result){
+            console.log("No image in the database");
+            return;
+        }
+        console.log("retrieved image from database");
+        const base64Image = result["base64Image"]
+        const img = new Image;
+        img.src = base64Image;
+        ctx?.drawImage(img, 0, 0);
         setUpServer();
     })
-}  else {
-    setUpServer();
-}
+    .catch((err)=>{
+        console.log(err);
+    })
+}).catch((err) => {
+    console.log(err);
+})
 
 function setUpServer() {
     io.on('connection', (socket) => {
@@ -113,6 +130,20 @@ function setUpServer() {
 }
 
 function saveImage(){
-    const buffer = canvas.toBuffer("image/png");
-    fs.writeFileSync("./image.png", buffer);
+    // const buffer = canvas.toBuffer("image/png");
+    // fs.writeFileSync("./image.png", buffer);
+    const base64Image = canvas.toDataURL("image/png");
+    CanvasImage.updateOne({ 
+        id: '1'
+    }, {
+        $set: {base64Image: base64Image},
+    },{
+        upsert: true,
+    })
+    .then((result)=>{
+        console.log("Image Saved on database");
+    })
+    .catch((err)=>{
+        console.log(err);
+    })
 }
