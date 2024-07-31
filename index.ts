@@ -59,9 +59,8 @@ function setUpServer() {
         console.log('connection')
     
         socket.on('client-ready', ()=>{
-            socket.emit('server-ready');
             var base64img = canvas.toDataURL("image/png");
-            socket.emit("canvas-update", base64img);
+            socket.emit('server-ready', base64img);
 
             amqp.connect('amqps://zqbfhloc:pOm_T3J-SMNSvruZvGi_DjtFZQvNk2dQ@codfish.rmq.cloudamqp.com/zqbfhloc', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
                 if(err){
