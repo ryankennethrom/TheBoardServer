@@ -61,21 +61,21 @@ function setUpServer() {
             throw err;
         }
 
-        io.on('connection', (socket) => {
-            console.log('connection')
-        
-            socket.on('client-ready', ()=>{
-                var base64img = canvas.toDataURL("image/png");
-                socket.emit('server-ready', base64img);
-            })
+        connection.createChannel((err, channel) => {
+            if(err){
+                throw err;
+            }
 
-            connection.createChannel((err, channel) => {
-                if(err){
-                    throw err;
-                }
-
+            io.on('connection', (socket) => {
+                console.log('connection')
+            
+                socket.on('client-ready', ()=>{
+                    var base64img = canvas.toDataURL("image/png");
+                    socket.emit('server-ready', base64img);
+                })
+    
                 socket.on('draw-line', ({prevPoint, currentPoint, color}: DrawLine) => {
-                    
+                        
                     let queueName = "drawQueue";
                     let line = {prevPoint, currentPoint, color};
                     channel.assertQueue(queueName, {
@@ -86,13 +86,13 @@ function setUpServer() {
                     //     connection.close();
                     // }, 1000)
                 })
+            
+                // socket.on('canvas-state', (state) => {
+                //     socket.broadcast.emit('canvas-state-from-server', state)
+                // })
+            
+                socket.on('clear', ()=> io.emit('clear'))
             })
-        
-            // socket.on('canvas-state', (state) => {
-            //     socket.broadcast.emit('canvas-state-from-server', state)
-            // })
-        
-            socket.on('clear', ()=> io.emit('clear'))
         })
 
     });
