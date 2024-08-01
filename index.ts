@@ -55,6 +55,7 @@ mongoose.connect(dbURI).then((result)=>{
 })
 
 function setUpServer() {
+
     amqp.connect('amqps://zqbfhloc:pOm_T3J-SMNSvruZvGi_DjtFZQvNk2dQ@codfish.rmq.cloudamqp.com/zqbfhloc', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
         if(err){
             throw err;
@@ -74,16 +75,16 @@ function setUpServer() {
                 })
         
                 socket.on('draw-line', ({prevPoint, currentPoint, color}: DrawLine) => {
-                    
-                            let queueName = "drawQueue";
-                            let line = {prevPoint, currentPoint, color};
-                            channel.assertQueue(queueName, {
-                                durable: false,
-                            });
-                            channel.sendToQueue(queueName, Buffer.from(JSON.stringify(line)));
-                            // setTimeout(() => {
-                            //     connection.close();
-                            // }, 1000)
+                        
+                    let queueName = "drawQueue";
+                    let line = {prevPoint, currentPoint, color};
+                    channel.assertQueue(queueName, {
+                        durable: false,
+                    });
+                    channel.sendToQueue(queueName, Buffer.from(JSON.stringify(line)));
+                    // setTimeout(() => {
+                    //     connection.close();
+                    // }, 1000)
                 })
             
                 // socket.on('canvas-state', (state) => {
@@ -93,6 +94,7 @@ function setUpServer() {
                 socket.on('clear', ()=> io.emit('clear'))
             })
         })
+
     });
     
     amqp.connect('amqps://zqbfhloc:pOm_T3J-SMNSvruZvGi_DjtFZQvNk2dQ@codfish.rmq.cloudamqp.com/zqbfhloc', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
