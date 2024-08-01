@@ -55,43 +55,45 @@ mongoose.connect(dbURI).then((result)=>{
 })
 
 function setUpServer() {
-    io.on('connection', (socket) => {
-        console.log('connection')
-    
-        socket.on('client-ready', ()=>{
-            var base64img = canvas.toDataURL("image/png");
-            socket.emit('server-ready', base64img);
+    amqp.connect('amqps://zqbfhloc:pOm_T3J-SMNSvruZvGi_DjtFZQvNk2dQ@codfish.rmq.cloudamqp.com/zqbfhloc', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
+        if(err){
+            throw err;
+        }
 
-            amqp.connect('amqps://zqbfhloc:pOm_T3J-SMNSvruZvGi_DjtFZQvNk2dQ@codfish.rmq.cloudamqp.com/zqbfhloc', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
-                if(err){
-                    throw err;
-                }
-    
-                connection.createChannel((err, channel) => {
-                    if(err){
-                        throw err;
-                    }
-                    socket.on('draw-line', ({prevPoint, currentPoint, color}: DrawLine) => {
-                        let queueName = "drawQueue";
-                        let line = {prevPoint, currentPoint, color};
-                        channel.assertQueue(queueName, {
-                            durable: false,
-                        });
-                        channel.sendToQueue(queueName, Buffer.from(JSON.stringify(line)));
-                        // setTimeout(() => {
-                        //     connection.close();
-                        // }, 1000)
-                    })
+        connection.createChannel((err, channel) => {
+            if(err){
+                throw err;
+            }
+
+            io.on('connection', (socket) => {
+                console.log('connection')
+            
+                socket.on('client-ready', ()=>{
+                    var base64img = canvas.toDataURL("image/png");
+                    socket.emit('server-ready', base64img);
                 })
-            });
+        
+                socket.on('draw-line', ({prevPoint, currentPoint, color}: DrawLine) => {
+                    
+                            let queueName = "drawQueue";
+                            let line = {prevPoint, currentPoint, color};
+                            channel.assertQueue(queueName, {
+                                durable: false,
+                            });
+                            channel.sendToQueue(queueName, Buffer.from(JSON.stringify(line)));
+                            // setTimeout(() => {
+                            //     connection.close();
+                            // }, 1000)
+                })
+            
+                // socket.on('canvas-state', (state) => {
+                //     socket.broadcast.emit('canvas-state-from-server', state)
+                // })
+            
+                socket.on('clear', ()=> io.emit('clear'))
+            })
         })
-    
-        // socket.on('canvas-state', (state) => {
-        //     socket.broadcast.emit('canvas-state-from-server', state)
-        // })
-    
-        socket.on('clear', ()=> io.emit('clear'))
-    })
+    });
     
     amqp.connect('amqps://zqbfhloc:pOm_T3J-SMNSvruZvGi_DjtFZQvNk2dQ@codfish.rmq.cloudamqp.com/zqbfhloc', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
         if(err){
