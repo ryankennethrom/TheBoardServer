@@ -27,7 +27,7 @@ type DrawLine = {
 }
 
 const dbURI = 'mongodb+srv://ryanrom14nalt:QHbBk0DioS1cuPyC@cluster0.gwvon2w.mongodb.net/TheBoard';
-var canvas = createCanvas(750,750);
+var canvas = createCanvas(900,750);
 const ctx = canvas.getContext('2d');
 
 mongoose.connect(dbURI).then((result)=>{
