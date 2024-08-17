@@ -77,9 +77,8 @@ function setUpServer() {
                     socket.emit('server-ready', base64img);
                 })
     
-                socket.on('draw-line', (base64Image) => {
-                        
-                    sendImageToQueue(base64Image, channel);
+                socket.on('draw-line', (queue) => {
+                    sendStrokesToQueue(queue, channel);
                 })
             
                 socket.on('clear', ()=> io.emit('clear'))
@@ -97,13 +96,13 @@ function setUpServer() {
             if(err){
                 throw err;
             }
-            let queueName = "drawQueue";
+            let queueName = "strokesQueue";
             channel.assertQueue(queueName, {
                 durable: false,
             });
             channel.consume(queueName, (msg: { content: { toString: () => any } }) => {
                 try {
-                    drawImageToCanvas(msg, ctx)
+                    drawStrokesToCanvas(msg, ctx)
                 } catch (e) {
                     console.error(e);
                 }
@@ -135,6 +134,16 @@ function drawImageToCanvas(base64Image: any, ctx: CanvasRenderingContext2D){
     img.src = base64ImageString;
 }
 
+function drawStrokesToCanvas(strokes: any, ctx: CanvasRenderingContext2D){
+    var strokesQueue = JSON.parse(JSON.parse(strokes.content.toString()))
+    for (let i = 0; i < strokesQueue.length; i++) {
+        var prevPoint = strokesQueue[i].prevPoint;
+        var currentPoint = strokesQueue[i].currentPoint;
+        var color = strokesQueue[i].color;
+        drawLine({prevPoint, currentPoint, color, ctx})
+    }
+}
+
 const sendLineToQueue = ({prevPoint, currentPoint, color}: DrawLine, channel:any) => {
     let queueName = "drawQueue";
     let line = {prevPoint, currentPoint, color};
@@ -150,6 +159,14 @@ const sendImageToQueue = (base64Image: any, channel:any) => {
         durable: false,
     });
     channel.sendToQueue(queueName, Buffer.from(JSON.stringify(base64Image)));
+}
+
+const sendStrokesToQueue = (queue:any, channel:any) => {
+    let queueName = "strokesQueue";
+    channel.assertQueue(queueName, {
+        durable: false,
+    });
+    channel.sendToQueue(queueName, Buffer.from(JSON.stringify(queue)));
 }
 
 function saveImage(){
