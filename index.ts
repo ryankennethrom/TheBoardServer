@@ -59,58 +59,75 @@ mongoose.connect(dbURI).then((result)=>{
 
 function setUpServer() {
 
-    amqp.connect('amqps://yfnqrvwf:h2bNZfx95DfuQbePLX4vjFUeTO9i2Hwc@codfish.rmq.cloudamqp.com/yfnqrvwf', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
-        if(err){
-            throw err;
-        }
-
-        connection.createChannel((err, channel) => {
-            if(err){
-                throw err;
-            }
-
-            io.on('connection', (socket) => {
-                console.log('connection')
-            
-                socket.on('client-ready', ()=>{
-                    var base64img = canvas.toDataURL("image/png");
-                    socket.emit('server-ready', base64img);
-                })
+    io.on('connection', (socket) => {
+        console.log('connection')
     
-                socket.on('draw-line', (queue) => {
-                    sendStrokesToQueue(queue, channel);
-                })
-            
-                socket.on('clear', ()=> io.emit('clear'))
-            })
+        socket.on('client-ready', ()=>{
+            var base64img = canvas.toDataURL("image/png");
+            socket.emit('server-ready', base64img);
         })
 
-    });
-    
-    amqp.connect('amqps://yfnqrvwf:h2bNZfx95DfuQbePLX4vjFUeTO9i2Hwc@codfish.rmq.cloudamqp.com/yfnqrvwf', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
-        if(err){
-            throw err;
-        }
-    
-        connection.createChannel((err, channel) => {
-            if(err){
-                throw err;
-            }
-            let queueName = "strokesQueue";
-            channel.assertQueue(queueName, {
-                durable: false,
-            });
-            channel.consume(queueName, (msg: { content: { toString: () => any } }) => {
-                try {
-                    drawStrokesToCanvas(msg, ctx)
-                } catch (e) {
-                    console.error(e);
-                }
-            }, {
-                noAck: true,
-            })
+        socket.on('draw-line', (line) => {
+            var { prevPoint, currentPoint, color } = line;
+            drawLine({prevPoint, currentPoint, color, ctx})
+            socket.broadcast.emit('draw-line', line);
         })
-    });
+    
+        socket.on('clear', ()=> io.emit('clear'))
+    })
+
+    // amqp.connect('amqps://yfnqrvwf:h2bNZfx95DfuQbePLX4vjFUeTO9i2Hwc@codfish.rmq.cloudamqp.com/yfnqrvwf', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
+    //     if(err){
+    //         throw err;
+    //     }
+
+    //     connection.createChannel((err, channel) => {
+    //         if(err){
+    //             throw err;
+    //         }
+
+    //         io.on('connection', (socket) => {
+    //             console.log('connection')
+            
+    //             socket.on('client-ready', ()=>{
+    //                 var base64img = canvas.toDataURL("image/png");
+    //                 socket.emit('server-ready', base64img);
+    //             })
+    
+    //             socket.on('draw-line', (queue) => {
+    //                 sendStrokesToQueue(queue, channel);
+    //             })
+            
+    //             socket.on('clear', ()=> io.emit('clear'))
+    //         })
+    //     })
+
+    // });
+    
+    // amqp.connect('amqps://yfnqrvwf:h2bNZfx95DfuQbePLX4vjFUeTO9i2Hwc@codfish.rmq.cloudamqp.com/yfnqrvwf', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
+    //     if(err){
+    //         throw err;
+    //     }
+    
+    //     connection.createChannel((err, channel) => {
+    //         if(err){
+    //             throw err;
+    //         }
+    //         let queueName = "strokesQueue";
+    //         channel.assertQueue(queueName, {
+    //             durable: false,
+    //         });
+    //         channel.consume(queueName, (msg: { content: { toString: () => any } }) => {
+    //             try {
+    //                 drawStrokesToCanvas(msg, ctx)
+    //             } catch (e) {
+    //                 console.error(e);
+    //             }
+    //         }, {
+    //             noAck: true,
+    //         })
+    //     })
+    // });
     
     server.listen(3001, () => {
         console.log('Server listening on port 3001')
@@ -163,6 +180,7 @@ const sendImageToQueue = (base64Image: any, channel:any) => {
 
 const sendStrokesToQueue = (queue:any, channel:any) => {
     let queueName = "strokesQueue";
+    console.log(queue);
     channel.assertQueue(queueName, {
         durable: false,
     });
