@@ -44,9 +44,11 @@ mongoose.connect(dbURI).then((result)=>{
         console.log("retrieved image from database");
         const base64Image = result["base64Image"]
         const img = new Image;
+        img.onload = () => {
+            ctx?.drawImage(img, 0, 0);
+            setUpServer();
+        }
         img.src = base64Image;
-        ctx?.drawImage(img, 0, 0);
-        setUpServer();
     })
     .catch((err)=>{
         console.log(err);
