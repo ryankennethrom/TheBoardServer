@@ -4,9 +4,10 @@ import amqp from 'amqplib/callback_api';
 import mongoose from 'mongoose';
 import { Server } from 'socket.io';
 import { drawLine } from './drawLine';
-import { Canvas, Image, createCanvas, loadImage } from 'canvas';
+import { Canvas, CanvasRenderingContext2D, Image, createCanvas, loadImage } from 'canvas';
 import fs from "fs";
 import CanvasImage from "./canvasImages";
+import { send } from 'process';
 
 const app = express()
 const server = http.createServer(app)
@@ -56,7 +57,7 @@ mongoose.connect(dbURI).then((result)=>{
 
 function setUpServer() {
 
-    amqp.connect('amqps://zqbfhloc:pOm_T3J-SMNSvruZvGi_DjtFZQvNk2dQ@codfish.rmq.cloudamqp.com/zqbfhloc', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
+    amqp.connect('amqps://yfnqrvwf:h2bNZfx95DfuQbePLX4vjFUeTO9i2Hwc@codfish.rmq.cloudamqp.com/yfnqrvwf', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
         if(err){
             throw err;
         }
@@ -74,22 +75,10 @@ function setUpServer() {
                     socket.emit('server-ready', base64img);
                 })
     
-                socket.on('draw-line', ({prevPoint, currentPoint, color}: DrawLine) => {
+                socket.on('draw-line', (base64Image) => {
                         
-                    let queueName = "drawQueue";
-                    let line = {prevPoint, currentPoint, color};
-                    channel.assertQueue(queueName, {
-                        durable: false,
-                    });
-                    channel.sendToQueue(queueName, Buffer.from(JSON.stringify(line)));
-                    // setTimeout(() => {
-                    //     connection.close();
-                    // }, 1000)
+                    sendImageToQueue(base64Image, channel);
                 })
-            
-                // socket.on('canvas-state', (state) => {
-                //     socket.broadcast.emit('canvas-state-from-server', state)
-                // })
             
                 socket.on('clear', ()=> io.emit('clear'))
             })
@@ -97,7 +86,7 @@ function setUpServer() {
 
     });
     
-    amqp.connect('amqps://zqbfhloc:pOm_T3J-SMNSvruZvGi_DjtFZQvNk2dQ@codfish.rmq.cloudamqp.com/zqbfhloc', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
+    amqp.connect('amqps://yfnqrvwf:h2bNZfx95DfuQbePLX4vjFUeTO9i2Hwc@codfish.rmq.cloudamqp.com/yfnqrvwf', (err: any, connection: { createChannel: (arg0: (err: any, channel: any) => void) => void; close: () => void }) => {
         if(err){
             throw err;
         }
@@ -112,10 +101,7 @@ function setUpServer() {
             });
             channel.consume(queueName, (msg: { content: { toString: () => any } }) => {
                 try {
-                    var {prevPoint, currentPoint, color} = JSON.parse(msg.content.toString());
-                    if(!ctx)return
-                    drawLine({prevPoint, currentPoint, ctx, color});
-                    // io.sockets.emit("draw-line", {prevPoint, currentPoint, color});
+                    drawImageToCanvas(msg, ctx)
                 } catch (e) {
                     console.error(e);
                 }
@@ -130,6 +116,38 @@ function setUpServer() {
     })
 
     setInterval(saveImage, 10000)
+}
+
+function drawStrokeToCanvas(strokeMsg: { content: any; }, ctx: CanvasRenderingContext2D, drawLine: { ({ prevPoint, currentPoint, ctx, color }: any): void; (arg0: { prevPoint: any; currentPoint: any; ctx: any; color: any; }): void; }){
+    var {prevPoint, currentPoint, color} = JSON.parse(strokeMsg.content.toString());
+    if(!ctx)return
+    drawLine({prevPoint, currentPoint, ctx, color});
+}
+
+function drawImageToCanvas(base64Image: any, ctx: CanvasRenderingContext2D){
+    var base64ImageString = JSON.parse(base64Image.content.toString())
+    const img = new Image;
+    img.onload = () => {
+        ctx?.drawImage(img, 0, 0);
+    }
+    img.src = base64ImageString;
+}
+
+const sendLineToQueue = ({prevPoint, currentPoint, color}: DrawLine, channel:any) => {
+    let queueName = "drawQueue";
+    let line = {prevPoint, currentPoint, color};
+    channel.assertQueue(queueName, {
+        durable: false,
+    });
+    channel.sendToQueue(queueName, Buffer.from(JSON.stringify(line)));
+}
+
+const sendImageToQueue = (base64Image: any, channel:any) => {
+    let queueName = "drawQueue";
+    channel.assertQueue(queueName, {
+        durable: false,
+    });
+    channel.sendToQueue(queueName, Buffer.from(JSON.stringify(base64Image)));
 }
 
 function saveImage(){
