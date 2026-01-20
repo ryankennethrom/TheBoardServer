@@ -38,7 +38,8 @@ mongoose.connect(dbURI).then((result)=>{
     .then((result) => {
         if(!result){
             console.log("No image in the database");
-            return;
+            setUpServer();
+	    return;
         }
         console.log("retrieved image from database");
         const base64Image = result["base64Image"]
