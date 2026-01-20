@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "server": "nodemon index.ts"
+    "dev": "nodemon index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
   },
   "engines": {
     "node": "20.x"
@@ -23,6 +25,8 @@
     "ts-node": "^10.9.2"
   },
   "devDependencies": {
-    "@types/node": "^20.14.12"
+    "@types/amqplib": "^0.10.8",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.19.30"
   }
 }
