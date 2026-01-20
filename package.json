@@ -5,6 +5,9 @@
   "scripts": {
     "server": "nodemon index.ts"
   },
+  "engines": {
+    "node": "20.x"
+  },
   "keywords": [],
   "type": "module",
   "author": "",
